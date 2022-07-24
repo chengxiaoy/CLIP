@@ -161,7 +161,7 @@ class ModifiedResNet(nn.Module):
 
 
 
-class LayerNorm(nn.Module):
+class ClipLayerNorm(nn.Module):
     r"""Applies Layer Normalization over a mini-batch of inputs as described in
     the paper `Layer Normalization <https://arxiv.org/abs/1607.06450>`__
 
@@ -218,7 +218,7 @@ class LayerNorm(nn.Module):
         >>> # NLP Example
         >>> batch, sentence_length, embedding_dim = 20, 5, 10
         >>> embedding = torch.randn(batch, sentence_length, embedding_dim)
-        >>> layer_norm = nn.LayerNorm(embedding_dim)
+        >>> layer_norm = nn.ClipLayerNorm(embedding_dim)
         >>> # Activate module
         >>> layer_norm(embedding)
         >>>
@@ -227,7 +227,7 @@ class LayerNorm(nn.Module):
         >>> input = torch.randn(N, C, H, W)
         >>> # Normalize over the last three dimensions (i.e. the channel and spatial dimensions)
         >>> # as shown in the image below
-        >>> layer_norm = nn.LayerNorm([C, H, W])
+        >>> layer_norm = nn.ClipLayerNorm([C, H, W])
         >>> output = layer_norm(input)
 
     .. image:: ../_static/img/nn/layer_norm.jpg
@@ -242,7 +242,7 @@ class LayerNorm(nn.Module):
     def __init__(self, normalized_shape: int, eps: float = 1e-5, elementwise_affine: bool = True,
                  device=None, dtype=None) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
-        super(LayerNorm, self).__init__()
+        super(ClipLayerNorm, self).__init__()
         if isinstance(normalized_shape, numbers.Integral):
             # mypy error: incompatible types in assignment
             normalized_shape = (normalized_shape,)  # type: ignore[assignment]
@@ -278,13 +278,13 @@ class ResidualAttentionBlock(nn.Module):
         super().__init__()
 
         self.attn = nn.MultiheadAttention(d_model, n_head)
-        self.ln_1 = LayerNorm(d_model)
+        self.ln_1 = ClipLayerNorm(d_model)
         self.mlp = nn.Sequential(OrderedDict([
             ("c_fc", nn.Linear(d_model, d_model * 4)),
             ("gelu", QuickGELU()),
             ("c_proj", nn.Linear(d_model * 4, d_model))
         ]))
-        self.ln_2 = LayerNorm(d_model)
+        self.ln_2 = ClipLayerNorm(d_model)
         self.attn_mask = attn_mask
 
     def attention(self, x: torch.Tensor):
@@ -318,11 +318,11 @@ class VisionTransformer(nn.Module):
         scale = width ** -0.5
         self.class_embedding = nn.Parameter(scale * torch.randn(width))
         self.positional_embedding = nn.Parameter(scale * torch.randn((input_resolution // patch_size) ** 2 + 1, width))
-        self.ln_pre = LayerNorm(width)
+        self.ln_pre = ClipLayerNorm(width)
 
         self.transformer = Transformer(width, layers, heads)
 
-        self.ln_post = LayerNorm(width)
+        self.ln_post = ClipLayerNorm(width)
         self.proj = nn.Parameter(scale * torch.randn(width, output_dim))
 
     def forward(self, x: torch.Tensor):
@@ -396,7 +396,7 @@ class CLIP(nn.Module):
         self.vocab_size = vocab_size
         self.token_embedding = nn.Embedding(vocab_size, transformer_width)
         self.positional_embedding = nn.Parameter(torch.empty(self.context_length, transformer_width))
-        self.ln_final = LayerNorm(transformer_width)
+        self.ln_final = ClipLayerNorm(transformer_width)
 
         self.text_projection = nn.Parameter(torch.empty(transformer_width, embed_dim))
         self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
